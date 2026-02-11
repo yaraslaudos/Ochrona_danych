@@ -1,0 +1,18 @@
+<html>
+<body>
+
+<h2>Weryfikacja 2FA</h2>
+
+{% if error %}
+    <p style="color: red;">{{ error }}</p>
+{% endif %}
+
+<form action="{{ url_for('login_totp') }}" method="post">
+    <input type="hidden" name="email" value="{{ email }}">
+    <label for="code">Kod z aplikacji: </label>
+    <input type="text" id="code" name="code"><br><br>
+    <input type="submit" value="Zaloguj">
+</form>
+
+</body>
+</html>

@@ -1,0 +1,30 @@
+<html>
+<body>
+
+<h2>Konfiguracja 2FA</h2>
+
+{% if error %}
+    <p style="color: red;">{{ error }}</p>
+{% endif %}
+
+{% if success %}
+    <p style="color: green;">{{ success }}</p>
+    <p><a href="/login">Zaloguj sie</a></p>
+{% else %}
+
+    <p>Zeskanuj QR kod w Google Authenticator:</p>
+
+    <img src="/{{ qr_path }}" alt="QR Code">
+
+    
+
+    <form action="{{ url_for('setup_totp') }}" method="post">
+        <label for="code">Kod z aplikacji: </label>
+        <input type="text" id="code" name="code"><br><br>
+        <input type="submit" value="Potwierdz">
+    </form>
+
+{% endif %}
+
+</body>
+</html>
