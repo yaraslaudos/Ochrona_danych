@@ -5,9 +5,9 @@ import bleach
 
 tags=["p", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "ul", "ol", "li", "pre", "hr", "em", "strong", "code", "a", "img", "br"]
 attributes={
-    "a": ["href", "title"],
+    "a": ["href"],
     "img": ["src", "alt"],
-    "*": ["class"]
+    "*": ["class", "title"]
         }
 from regestration import app
 
@@ -35,7 +35,7 @@ def add_note():
 
     user_id = session['user_id']
     markdown_text = request.form.get('markdown')
-
+    clean_markdown=bleach.clean(markdown_text, tags=tags, attributes=attributes)
     if markdown_text:
         create_note(user_id, markdown_text)
 

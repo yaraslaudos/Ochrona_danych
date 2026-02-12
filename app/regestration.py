@@ -7,7 +7,7 @@ import os
 from aes import encrypt_aes
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('FLASK_SECRET', 'Xasfg3hgjyewktwtn')
+app.secret_key = os.environ['FLASK_SECRET']
 ph = PasswordHasher()
 
 
@@ -34,6 +34,11 @@ def register():
         return render_template("register.html", error="Hasła różnią się")
     if len(password) < 8:
         return render_template("register.html", error="Hasła za krótkie")
+    if not any(char.isdigit() for char in password):
+        return render_template("register.html", error="Hasło nie zawiera liczbę")
+
+    if not any(char.isupper() for char in password):
+        return render_template("register.html", error="Hasło nie zawiera wielką literę")
 
     #Istnienie Usera
 
@@ -42,41 +47,39 @@ def register():
         return render_template("register.html", error="Ten user już istnieje")
 
     password_hash = ph.hash(password)
+    totp_secret = pyotp.random_base32()
 
     session['email'] = email
     session['password_hash'] = password_hash
-
+    session['totp_secret']=totp_secret
     return redirect(url_for('setup_totp'))
 
 
 @app.route("/setup-totp", methods=['GET', 'POST'])
 def setup_totp():
 
-    if 'email' not in session:
+    if 'email' not in session or 'totp_secret' not in session or 'password_hash' not in session:
         return redirect(url_for('register'))
 
     email = session['email']
+    totp_secret=session['totp_secret']
 
+    qr_path = create_qr(email, totp_secret)
     if request.method == "GET":
-        totp_secret = pyotp.random_base32()
-        session['totp_secret'] = totp_secret
-        qr_path = create_qr(email, totp_secret)
-        session['qr_path'] = qr_path
+        
+        
         return render_template("setup_totp.html", qr_path=qr_path)
 
-    totp_secret = session['totp_secret']
+    
 
     code = request.form.get("code")
-    qr_path=session.get('qr_path')
     if not code:
-        
         return render_template("setup_totp.html", qr_path=qr_path, error="Wpisz kod")
 
     totp = pyotp.TOTP(totp_secret)
-    kod_ok = totp.verify(code)
+    kod_ok = totp.verify(code, valid_window=1)
 
     if not kod_ok:
-        qr_path = create_qr(email, totp_secret)
         return render_template("setup_totp.html", qr_path=qr_path,  error="Zly kod")
 
     password_hash = session['password_hash']
@@ -84,24 +87,24 @@ def setup_totp():
     aes_secret, iv, salt = encrypt_aes(totp_secret)
     user_id = database.create_user(email, password_hash, aes_secret, iv, salt)
 
-    session.pop("qr_path", None)
-    delete_qr(email)
-
-    session.pop('email', None)
-    session.pop('password_hash', None)
-    session.pop('totp_secret', None)
+    
+    
+    
 
     if user_id:
+        delete_qr(email)
+        session.clear()
         return redirect(url_for("login_password"))
     else:
-        return render_template("setup_totp.html", error="Cos poszlo zle")
+         return render_template("setup_totp.html", qr_path=qr_path, error="Cos poszlo zle")
 
 
 def create_qr(email, totp_secret):
-    base_dir = os.path.dirname(os.path.abspath(__file__)) #Korzeń
-    static_dir = os.path.join(base_dir, "static", "qr_codes")
+    path = "static/qr_codes"
 
-    os.makedirs(static_dir, exist_ok=True)
+    if not os.path.exists(path):
+        os.makedirs(path)
+
 
     totp = pyotp.TOTP(totp_secret)
     uri = totp.provisioning_uri(name=email, issuer_name="project2")
@@ -110,26 +113,26 @@ def create_qr(email, totp_secret):
     safe_email = email.replace("@", "_").replace(".", "_")
     filename = f"user_{safe_email}.png"
 
-    full_path = os.path.join(static_dir, filename)
+    full_path = os.path.join(path, filename)
     img.save(full_path)
 
     return f"static/qr_codes/{filename}"
 
 
 def delete_qr(email):
-    base_dir = os.path.dirname(os.path.abspath(__file__))
+    path = "static/qr_codes"
 
     safe_email = email.replace("@", "_").replace(".", "_")
     filename = f"user_{safe_email}.png"
 
-    qr_path = os.path.join(base_dir, "static", "qr_codes", filename)
+    qr_path = os.path.join(path, filename)
 
     if os.path.exists(qr_path):
         os.remove(qr_path)
 
 
 def valid_email(email):
-    return '@' in email and '.' in email
+    return '@' in email and '.' in email and 'com' in email
 
 
 import login
