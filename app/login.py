@@ -1,5 +1,6 @@
 from flask import render_template, request, session, redirect, url_for
 from argon2 import PasswordHasher, exceptions
+from argon2.exceptions import VerifyMismatchError
 from database import get_user_by_username, update_failed_attempts, reset_failed_attempts
 from aes import decrypt_aes
 import pyotp
@@ -33,19 +34,19 @@ def login_password():
     
     if user['locked_until'] > time.time():
         pozostalo = int(user['locked_until'] - time.time())
-        return render_template("login_password.html", error=f"Konto zablokowane na {pozostalo} sekund")
+        return render_template("login_password.html", error=f"Konto zablokowane. Sprobuj przez {pozostalo} sekund")
 
  
     try:
         ph.verify(user['password_hash'], password)
-    except Exception:
+    except VerifyMismatchError:
         new_attempts = user['failed_attempts'] + 1
         #return render_template("login_password.html", error="Zly email lub haslo")
         time.sleep(delay(new_attempts))
         if new_attempts >= max_attempts:
             locked_until = time.time() + block
             update_failed_attempts(email, new_attempts, locked_until)
-            return render_template("login_password.html", error=f" {block} zablokowany")
+            return render_template("login_password.html", error=f"  Przekroczono ilość dozwolonych prób.Konto zostało zablokowane. Sprobuj przez {block} sekund ")
 
         update_failed_attempts(email, new_attempts)
         return render_template("login_password.html", error="Zly email lub haslo")
@@ -55,14 +56,18 @@ def login_password():
     return render_template("login_totp.html", email=email)
 
 
-@app.route("/login_totp", methods=['POST'])
+@app.route("/login_totp", methods=['GET', 'POST'])
 def login_totp():
     
     
     if 'email' not in session:
-            return redirect(url_for('register'))
+            return redirect(url_for('login_password'))
+
+    if request.method == "GET":
+        return render_template("login_totp.html", email=session['email'])
+
     email=session['email']
-    
+
     code = request.form.get("code")
 
     if not email:
@@ -100,6 +105,8 @@ def login_totp():
    
     reset_failed_attempts(email)
 
+
+    session.pop('email', None)
     session['user_id'] = user['id']
 
     return redirect(url_for('home'))
@@ -109,9 +116,9 @@ def delay(failed_attempts):
     return min(2**failed_attempts, max_delay)
 
 
-def valid_email(email):
-    return '@' in email and '.' in email
 
+def valid_email(email):
+    return '@' in email and '.' in email and 'com' in email
 
 
 

@@ -1,7 +1,7 @@
 services:
   flask:
     build: .
-    container_name: flask_app
+    container_name: project2
     expose:
       - "5000"
     env_file:
@@ -9,7 +9,7 @@ services:
 
   nginx:
     image: nginx:alpine
-    container_name: nginx_proxy
+    container_name: nginx
     ports:
       - "80:80"
       - "443:443"

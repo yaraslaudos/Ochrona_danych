@@ -9,6 +9,7 @@ attributes={
     "img": ["src", "alt"],
     "*": ["class", "title"]
         }
+protocols=['http','https'] 
 from regestration import app
 
 
@@ -35,10 +36,9 @@ def add_note():
 
     user_id = session['user_id']
     markdown_text = request.form.get('markdown')
-    clean_markdown=bleach.clean(markdown_text, tags=tags, attributes=attributes)
+    
     if markdown_text:
         create_note(user_id, markdown_text)
-
     return redirect(url_for('home'))
 
 
@@ -55,7 +55,7 @@ def view_note(note_id):
 
    
     rendered = markdown.markdown(note['content'])
-    clean_html=bleach.clean(rendered, tags=tags, attributes=attributes)
+    clean_html=bleach.clean(rendered, tags=tags, attributes=attributes, protocols=protocols, strip=False)
 
     return render_template("view_note.html", note=note, rendered=clean_html)
 

@@ -1,7 +1,6 @@
 import sqlite3
-import os
 
-DATABASE_PATH=os.path.join(os.path.dirname(__file__), 'notes.db')
+DATABASE_PATH='notes.db'
 
 
 def get_connection(): 
